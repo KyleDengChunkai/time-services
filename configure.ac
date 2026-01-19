@@ -29,9 +29,10 @@ PKG_PROG_PKG_CONFIG
 # Checks for libraries with user.
 AC_ARG_WITH([qmif-prefix],
     [AS_HELP_STRING([--with-qmif-prefix=PATH], [Path to qmi-framework installation])],
-    [QMIF=$withval], [QMIF=/usr/local])
-QMIF_CFLAGS="-I ${QMIF}/include/qmi_framework"
-QMIF_LIBS="-L${QMIF}/lib/"
+    [QMIF=${withval}/include], [QMIF=${QMIF_CFLAGS_DIR}])
+QMIF_CFLAGS="-I ${QMIF}/qmi_framework"
+QMIF_LIBS="-L${QMIF}/../lib/"
+
 AC_SUBST([QMIF_CFLAGS])
 AC_SUBST([QMIF_LIBS])
 CFLAGS="$CFLAGS  -DSYSLOG_ENABLE"
@@ -41,7 +42,5 @@ PKG_CHECK_MODULES(GLIB, glib-2.0 >= 2.16, dummy=yes, AC_MSG_ERROR(GLib >= 2.16 i
 GLIB_LIBS="$GLIB_LIBS $GTHREAD_LIBS"
 AC_SUBST(GLIB_LIBS)
 
-AC_CONFIG_FILES([ \
-        Makefile \
-        ])
+AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

@@ -1,6 +1,10 @@
 # Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 
+
+AM_CPPFLAGS = @QMIF_CFLAGS@
+LDADD       = @QMIF_LIBS@
+
 AM_CFLAGS = -Wundef \
         -Wstrict-prototypes \
         -Wno-trigraphs \
@@ -8,7 +12,6 @@ AM_CFLAGS = -Wundef \
         -fno-inline \
         -fno-short-enums \
         -fpic \
-        $(QMIF_CFLAGS) \
         -I.
 
 h_sources = ./time_service_v01.h \
