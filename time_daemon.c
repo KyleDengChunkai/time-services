@@ -15,6 +15,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <errno.h>
+#include <inttypes.h>
 
 #include "qmi_cci.h"
 #include "qmi_idl_lib_internal.h"
@@ -215,7 +216,7 @@ static int genoff_check_offset(struct time_genoff_info *pargs)
 	}
 	*(uint64_t *)pargs->ts_val = ((ptime_genoff->generic_offset) != 0) ? 1 : 0;
 	if (!disable_logging)
-		TIME_LOGD("offset is: %d for base: %d", *(uint64_t *)pargs->ts_val, pargs->base);
+		TIME_LOGD("offset is: %" PRIu64 " for base: %d", *(uint64_t *)pargs->ts_val, pargs->base);
 	return 0;
 }
 
@@ -225,7 +226,8 @@ genoff_updates_per_storage(struct time_genoff_struct *time_genoff, char *name,
 {
 	time_genoff->per_storage_spec.initialized = 1;
 	time_genoff->per_storage_spec.threshold   = thold;
-	strlcpy(time_genoff->per_storage_spec.f_name, name, FILE_NAME_MAX);
+	snprintf(time_genoff->per_storage_spec.f_name, FILE_NAME_MAX, "%s", name);
+	time_genoff->per_storage_spec.f_name[FILE_NAME_MAX - 1] = '\0';
 	TIME_LOGD(" Storage Name: %s\n",
 			time_genoff->per_storage_spec.f_name);
 } /* time_genoff_updates_per_storage */
@@ -236,7 +238,7 @@ void genoff_persistent_update(struct time_genoff_struct *ptime_genoff, int64_t d
 	int rc;
 
 	if (ptime_genoff->per_storage_spec.initialized == 1) {
-		TIME_LOGD("%s: Writing genoff = %llu to memory\n",
+		TIME_LOGD("%s: Writing genoff = %" PRId64 " to memory\n",
 				__func__, ptime_genoff->generic_offset);
 
 		rc = time_persistent_memory_opr(
@@ -284,7 +286,7 @@ static int rtc_get(int64_t *msecs)
 	}
 
 	*msecs = SEC_TO_MSEC(secs);
-	TIME_LOGD("Value read from RTC mseconds = %lld\n", *msecs);
+	TIME_LOGD("Value read from RTC mseconds = %" PRId64 "\n", *msecs);
 
 	close(fd);
 	return 0;
@@ -316,11 +318,11 @@ static int genoff_set(struct time_genoff_info *pargs)
 
 	/* delta_ms = new time - rtc time */
 	delta_ms = *(uint64_t *)pargs->ts_val - rtc_msecs;
-	TIME_LOGD("new time %lld\n",
+	TIME_LOGD("new time %" PRIu64 "\n",
 			*(uint64_t *)pargs->ts_val);
 	ptime_genoff->generic_offset = delta_ms;
 
-	TIME_LOGD("delta %lld genoff %lld\n", delta_ms,
+	TIME_LOGD("delta %" PRId64 " genoff %" PRId64 "\n", delta_ms,
 			ptime_genoff->generic_offset);
 	genoff_persistent_update(ptime_genoff, delta_ms);
 
@@ -348,14 +350,14 @@ static int genoff_get(struct time_genoff_info *pargs)
 	if (rtc_get(&rtc_msecs))
 		goto fail_time_get;
 
-	TIME_LOGD("Value read from RTC mseconds = %lld\n", rtc_msecs);
-	TIME_LOGD("Daemon:Value read from generic offset = %lld\n",
+	TIME_LOGD("Value read from RTC mseconds = %" PRId64 "\n", rtc_msecs);
+	TIME_LOGD("Daemon:Value read from generic offset = %" PRId64 "\n",
 					ptime_genoff->generic_offset);
 
 	/* Add RTC time to the offset */
 	*(uint64_t *)pargs->ts_val = ptime_genoff->generic_offset + rtc_msecs;
 
-	TIME_LOGD("Final Time = %llu\n", *(uint64_t *)pargs->ts_val);
+	TIME_LOGD("Final Time = %" PRIu64 "\n", *(uint64_t *)pargs->ts_val);
 	return 0;
 
 fail_time_get:
@@ -369,7 +371,7 @@ static int genoff_opr(struct time_genoff_info *pargs)
 	uint64_t ts_val_secs;
 	int rc = 0;
 
-	TIME_LOGD("%s: Base = %d, val = %llu, operation = %d",
+	TIME_LOGD("%s: Base = %d, val = %" PRIu64 ", operation = %d",
 			__func__, pargs->base, *(uint64_t *)(pargs->ts_val),
 			pargs->operation);
 
@@ -502,7 +504,7 @@ static int ats_rtc_init(struct time_genoff_struct *ptime_genoff)
 	}
 
 	msecs = SEC_TO_MSEC(secs);
-	TIME_LOGD("Value read from RTC seconds = %lld\n", msecs);
+	TIME_LOGD("Value read from RTC seconds = %" PRId64 "\n", msecs);
 	genoff_set_generic_offset(ptime_genoff, msecs);
 
 	rc = genoff_post_init(ptime_genoff);
@@ -618,7 +620,7 @@ genoff_send_modem(struct time_genoff_info *genoff_args)
 	time_value -= (uint64_t)SEC_TO_MSEC(MODEM_EPOCH_DIFFERENCE);
 
 	if (!disable_logging)
-		TIME_LOGD("Daemon: Base = %d, Value being sent to MODEM = %llu\n",
+		TIME_LOGD("Daemon: Base = %d, Value being sent to MODEM = %" PRIu64 "\n",
 			genoff_args->base, time_value);
 
 	time_req_msg.base = genoff_args->base;
@@ -696,7 +698,7 @@ static void genoff_handler(void *recv_arg)
 	}
 
 	if (!disable_logging) {
-		TIME_LOGD("Daemon:Received base = %d, unit = %d, operation = %d,value = %llu\n",
+		TIME_LOGD("Daemon:Received base = %d, unit = %d, operation = %d,value = %" PRIu64 "\n",
 				to_recv.base, to_recv.unit,
 					to_recv.operation, to_recv.value);
 	}
@@ -780,8 +782,8 @@ error_invalid_input:
 }
 
 /* Callback indication function for time update from modem */
-static void tod_update_ind_cb(qmi_client_type handle, unsigned long msg_id,
-		unsigned char *buffer, int buffer_len, void *indication_data)
+static void tod_update_ind_cb(qmi_client_type handle, unsigned int msg_id,
+		void *buffer, unsigned int buffer_len, void *indication_data)
 {
 	int rc;
 	uint64_t time_value;
@@ -791,7 +793,7 @@ static void tod_update_ind_cb(qmi_client_type handle, unsigned long msg_id,
 	time_update_indication_message_v01 ind_buff;
 	struct time_genoff_info genoff_update;
 
-	TIME_LOGD("%s: Got Update from modem msg_id %lu\n", __func__,
+	TIME_LOGD("%s: Got Update from modem msg_id %u\n", __func__,
 			msg_id);
 
 	if (msg_id != QMI_TIME_ATS_TOD_UPDATE_IND_MSG_V01)
@@ -871,8 +873,9 @@ void time_service_modem_serv_notify_cb
 	}
 }
 
-void *genoff_modem_qmi_service_handle_cb(void)
+void *genoff_modem_qmi_service_handle_cb(void *arg)
 {
+	(void)arg;  /* Unused parameter */
 	int i = 0, rc, retry_count;
 	unsigned int num_entries = 1, num_services;
 	uint64_t time_value;
@@ -944,7 +947,7 @@ void *genoff_modem_qmi_service_handle_cb(void)
 		if (rc == QMI_NO_ERR && resp_message.resp.error == 0) {
 			resp_message.generic_offset +=
 				(uint64_t)SEC_TO_MSEC(MODEM_EPOCH_DIFFERENCE);
-			TIME_LOGD("Daemon:%s:Time received %llu\n",
+			TIME_LOGD("Daemon:%s:Time received %" PRIu64 "\n",
 					__func__, resp_message.generic_offset);
 		} else {
 			TIME_LOGE("Daemon:%s: Error in reading full time ignoring update rc=%d"
@@ -1110,7 +1113,8 @@ static void conn_handler(void *recv_arg)
 		pthread_exit(NULL);
 	}
 	time_socket.sun_family = AF_UNIX;
-	strlcpy(time_socket.sun_path, GENOFF_SOCKET_NAME, UNIX_PATH_MAX);
+	snprintf(time_socket.sun_path, UNIX_PATH_MAX, "%s", GENOFF_SOCKET_NAME);
+	time_socket.sun_path[UNIX_PATH_MAX - 1] = '\0';
 
 	/* abstract domain socket */
 	time_socket.sun_path[0] = 0;
@@ -1192,7 +1196,7 @@ static void read_offset(void *recv_arg)
 		if (rc == QMI_NO_ERR &&	resp_message.resp.error == 0) {
 			resp_message.generic_offset +=
 				(uint64_t)SEC_TO_MSEC(MODEM_EPOCH_DIFFERENCE);
-			TIME_LOGD("Daemon:%s:Time received %llu\n",
+			TIME_LOGD("Daemon:%s:Time received %" PRIu64 "\n",
 					__func__,
 					resp_message.generic_offset);
 		} else {

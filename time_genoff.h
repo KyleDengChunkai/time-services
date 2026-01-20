@@ -18,7 +18,6 @@
 #define	MODEM_EPOCH_DIFFERENCE	 315964800
 #define ATS_MAX		ATS_TOD_GEN + 1
 #define FILE_NAME_MAX	100
-#define strlcpy		g_strlcpy
 
 /* Dividend of factor to multiply for converting sclk to cx32 */
 #define TIME_CONV_SCLK_CX32_DIVIDEND 256
@@ -79,7 +78,7 @@ struct time_genoff_struct {
 	/* Time base Type */
 	time_bases_type bases_type;
 	/* Initialization Sequence */
-	int (*init_func)();
+	int (*init_func)(void);
 	/* Mark if subsys based on another subsys */
 	uint8_t reqd_base_genoff;
 	/* Base Subsys */
